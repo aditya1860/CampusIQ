@@ -1,0 +1,785 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CampusIQ - College Discovery Platform</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Inter', 'sans-serif'] },
+                    colors: {
+                        brand: { 50: '#eef2ff', 100: '#e0e7ff', 500: '#6366f1', 600: '#4f46e5', 700: '#4338ca' }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Custom scrollbar for a cleaner look */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+        /* Smooth transitions */
+        .page-transition { animation: fadeIn 0.3s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans h-screen flex flex-col overflow-hidden">
+
+    <header class="bg-white border-b border-slate-200 sticky top-0 z-20 shadow-sm">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16 gap-4">
+                <!-- Logo -->
+                <div class="flex-shrink-0 flex items-center gap-2 cursor-pointer" onclick="showPage('list')">
+                    <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-brand-500 to-brand-700 flex items-center justify-center text-white">
+                        <i class="ph ph-graduation-cap text-xl"></i>
+                    </div>
+                    <span class="font-bold text-xl tracking-tight text-slate-900">Campus<span class="text-brand-600 font-light">IQ</span></span>
+                </div>
+
+                <!-- Search Bar -->
+                <div class="flex-1 max-w-2xl hidden sm:block relative">
+                    <i class="ph ph-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-lg"></i>
+                    <input id="search-input" type="text" placeholder="Search colleges, courses, locations..." 
+                        class="w-full pl-10 pr-4 py-2 bg-slate-100 border border-transparent rounded-full text-sm focus:bg-white focus:border-brand-500 focus:ring-2 focus:ring-brand-200 transition-all outline-none"
+                        oninput="doSearch()">
+                </div>
+
+                <!-- Navigation Tabs -->
+                <nav class="flex space-x-1 sm:space-x-4 overflow-x-auto hide-scrollbar pb-1 sm:pb-0" id="main-nav">
+                    <!-- Tabs injected via JS -->
+                </nav>
+            </div>
+            <!-- Mobile Search -->
+            <div class="sm:hidden pb-3 relative">
+                <i class="ph ph-magnifying-glass absolute left-3 top-[10px] text-slate-400 text-lg"></i>
+                <input id="search-input-mobile" type="text" placeholder="Search..." 
+                    class="w-full pl-10 pr-4 py-2 bg-slate-100 border border-transparent rounded-full text-sm focus:bg-white focus:border-brand-500 outline-none"
+                    oninput="document.getElementById('search-input').value=this.value; doSearch()">
+            </div>
+        </div>
+    </header>
+
+    <main class="flex-1 overflow-hidden flex max-w-7xl mx-auto w-full relative">
+        
+        <!-- Mobile Filter Toggle -->
+        <button id="mobile-filter-btn" onclick="toggleMobileSidebar()" class="md:hidden absolute top-4 right-4 z-30 bg-white border border-slate-200 shadow-sm p-2 rounded-lg text-slate-600 flex items-center gap-2 text-sm">
+            <i class="ph ph-faders text-lg"></i> Filters
+        </button>
+
+        <!-- Sidebar (Filters) -->
+        <aside id="sidebar" class="w-64 bg-white border-r border-slate-200 overflow-y-auto flex-shrink-0 absolute md:relative z-20 h-full transform -translate-x-full md:translate-x-0 transition-transform duration-300 ease-in-out">
+            <div class="p-6 space-y-8">
+                <div class="flex justify-between items-center md:hidden mb-4">
+                    <h3 class="font-semibold text-slate-900">Filters</h3>
+                    <button onclick="toggleMobileSidebar()"><i class="ph ph-x text-xl text-slate-500"></i></button>
+                </div>
+                
+                <div class="filter-group">
+                    <h4 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Location</h4>
+                    <div id="loc-filters" class="space-y-2"></div>
+                </div>
+                <div class="filter-group">
+                    <h4 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Institution Type</h4>
+                    <div id="type-filters" class="space-y-2"></div>
+                </div>
+                <div class="filter-group">
+                    <h4 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Annual Fees</h4>
+                    <div id="fee-filters" class="flex flex-wrap gap-2"></div>
+                </div>
+                <div class="filter-group">
+                    <h4 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Minimum Rating</h4>
+                    <div id="rating-filters" class="flex flex-wrap gap-2"></div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Content Area -->
+        <div class="flex-1 relative overflow-hidden flex flex-col bg-slate-50/50">
+            <!-- Overlay for mobile sidebar -->
+            <div id="sidebar-overlay" class="fixed inset-0 bg-slate-900/50 z-10 hidden md:hidden" onclick="toggleMobileSidebar()"></div>
+            
+            <!-- Pages -->
+            <div id="page-list" class="flex-1 overflow-y-auto p-4 sm:p-6 page-transition"></div>
+            <div id="page-compare" class="flex-1 overflow-y-auto p-4 sm:p-6 page-transition hidden"></div>
+            <div id="page-predictor" class="flex-1 overflow-y-auto p-4 sm:p-6 page-transition hidden"></div>
+            <div id="page-detail" class="flex-1 overflow-y-auto p-0 page-transition hidden"></div>
+
+            <!-- Sticky Compare Bar -->
+            <div id="compare-bar" class="bg-white border-t border-slate-200 p-3 sm:p-4 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] transform translate-y-full transition-transform duration-300 absolute bottom-0 left-0 right-0 z-10">
+                <div class="max-w-4xl mx-auto flex items-center justify-between gap-4">
+                    <div class="flex items-center gap-3 overflow-x-auto hide-scrollbar flex-1" id="cmp-slots">
+                        <!-- Slots injected here -->
+                    </div>
+                    <button id="go-compare-btn" onclick="showPage('compare')" class="bg-brand-600 hover:bg-brand-700 text-white px-5 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap hidden shadow-sm flex items-center gap-2">
+                        Compare <i class="ph ph-arrow-right"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        const COLLEGES = [
+            {id:1,name:"IIT Bombay",loc:"Mumbai, Maharashtra",type:"IIT",fees:250000,rating:4.8,nirf:1,courses:["B.Tech","M.Tech","MBA","PhD"],placements:{avg:1800000,highest:5000000,pct:95},reviews:[{author:"Arjun M.",text:"World-class faculty and research opportunities. Placement season is intense but worth it."},{author:"Priya S.",text:"Infrastructure is excellent. Peer learning is the biggest advantage here."}],icon:"ph-bank"},
+            {id:2,name:"IIT Delhi",loc:"New Delhi, Delhi",type:"IIT",fees:235000,rating:4.7,nirf:2,courses:["B.Tech","M.Tech","Design","PhD"],placements:{avg:1700000,highest:4800000,pct:94},reviews:[{author:"Rahul K.",text:"Amazing exposure to industry. The alumni network is unmatched."},{author:"Sneha B.",text:"Great balance of academics and extracurriculars."}],icon:"ph-buildings"},
+            {id:3,name:"BITS Pilani",loc:"Pilani, Rajasthan",type:"Private",fees:450000,rating:4.5,nirf:16,courses:["B.E.","M.Tech","MBA","Integrated MSc"],placements:{avg:1200000,highest:3800000,pct:90},reviews:[{author:"Vikram J.",text:"Practice School is a unique and career-defining experience."},{author:"Ananya R.",text:"Flexible curriculum lets you explore dual degrees effectively."}],icon:"ph-lightning"},
+            {id:4,name:"NIT Trichy",loc:"Tiruchirappalli, Tamil Nadu",type:"NIT",fees:130000,rating:4.4,nirf:8,courses:["B.Tech","M.Tech","MBA","MCA"],placements:{avg:900000,highest:2800000,pct:88},reviews:[{author:"Karthik P.",text:"Southern campus with great culture and solid placements."},{author:"Meera L.",text:"Affordable fees for the quality of education you get."}],icon:"ph-atom"},
+            {id:5,name:"VIT Vellore",loc:"Vellore, Tamil Nadu",type:"Private",fees:200000,rating:4.1,nirf:22,courses:["B.Tech","MBA","MCA","M.Tech"],placements:{avg:650000,highest:1800000,pct:82},reviews:[{author:"Sai N.",text:"Huge campus, many clubs and hackathons. Good for networking."},{author:"Divya C.",text:"Strong for CSE and ECE branches."}],icon:"ph-globe-hemisphere-west"},
+            {id:6,name:"IIM Ahmedabad",loc:"Ahmedabad, Gujarat",type:"IIM",fees:2300000,rating:4.9,nirf:1,courses:["MBA","PGPX","PhD","Executive MBA"],placements:{avg:3500000,highest:9000000,pct:100},reviews:[{author:"Neerav S.",text:"The case study method is transformative. Best MBA in India, no question."},{author:"Pooja M.",text:"Intense two years but opens every door you want."}],icon:"ph-briefcase"},
+            {id:7,name:"AIIMS Delhi",loc:"New Delhi, Delhi",type:"Government",fees:50000,rating:4.8,nirf:1,courses:["MBBS","MD","MS","BSc Nursing"],placements:{avg:1200000,highest:4000000,pct:99},reviews:[{author:"Dr. Riya T.",text:"The clinical exposure here is unparalleled in India."},{author:"Shiv A.",text:"Extremely competitive but worth every second."}],icon:"ph-hospital"},
+            {id:8,name:"Manipal Institute",loc:"Manipal, Karnataka",type:"Private",fees:380000,rating:3.9,nirf:35,courses:["B.Tech","MBBS","MBA","B.Arch"],placements:{avg:580000,highest:1400000,pct:78},reviews:[{author:"Tanvi R.",text:"Beautiful campus. Great for medicine and tech both."},{author:"Arun J.",text:"International exposure with good infrastructure."}],icon:"ph-tree-evergreen"}
+        ];
+
+        let state = {
+            compareList: [],
+            filters: { locs: [], types: [], fee: null, rating: null },
+            searchQ: '',
+            currentPage: 'list',
+            sortBy: 'rating'
+        };
+
+        const TABS = [
+            { id: 'list', label: 'Discover', icon: 'ph-compass' },
+            { id: 'compare', label: 'Compare', icon: 'ph-scales' },
+            { id: 'predictor', label: 'Predictor', icon: 'ph-magic-wand' }
+        ];
+
+        function initApp() {
+            renderTabs();
+            buildFilters();
+            renderList();
+        }
+
+        function renderTabs() {
+            const nav = document.getElementById('main-nav');
+            nav.innerHTML = TABS.map(tab => `
+                <button onclick="showPage('${tab.id}')" 
+                    class="tab-btn px-3 py-4 sm:py-5 text-sm font-medium border-b-2 transition-colors flex items-center gap-2 whitespace-nowrap
+                    ${state.currentPage === tab.id ? 'border-brand-600 text-brand-600' : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'}">
+                    <i class="ph ${tab.icon} text-lg"></i> ${tab.label}
+                </button>
+            `).join('');
+        }
+
+        function buildFilters() {
+            const locs = [...new Set(COLLEGES.map(c => c.loc.split(',')[1].trim()))].sort();
+            const types = [...new Set(COLLEGES.map(c => c.type))].sort();
+            
+            const createCheckbox = (key, val) => `
+                <label class="flex items-center gap-3 p-1 cursor-pointer group">
+                    <div class="relative flex items-center">
+                        <input type="checkbox" onchange="toggleFilter('${key}','${val}',this.checked)" class="peer sr-only">
+                        <div class="w-4 h-4 border border-slate-300 rounded peer-checked:bg-brand-600 peer-checked:border-brand-600 transition-colors"></div>
+                        <i class="ph-bold ph-check absolute text-white text-xs left-[2px] opacity-0 peer-checked:opacity-100 transition-opacity"></i>
+                    </div>
+                    <span class="text-sm text-slate-600 group-hover:text-slate-900 transition-colors">${val}</span>
+                </label>`;
+
+            document.getElementById('loc-filters').innerHTML = locs.map(l => createCheckbox('locs', l)).join('');
+            document.getElementById('type-filters').innerHTML = types.map(t => createCheckbox('types', t)).join('');
+
+            const createPill = (group, val, filterKey) => {
+                const btn = document.createElement('button');
+                btn.className = 'px-3 py-1.5 border border-slate-200 rounded-full text-xs font-medium text-slate-600 hover:border-brand-300 hover:text-brand-600 transition-colors bg-white';
+                btn.textContent = val;
+                btn.onclick = (e) => {
+                    const parent = e.target.parentElement;
+                    Array.from(parent.children).forEach(c => { c.classList.remove('bg-brand-50', 'border-brand-500', 'text-brand-700'); });
+                    if (state.filters[filterKey] !== val) {
+                        btn.classList.add('bg-brand-50', 'border-brand-500', 'text-brand-700');
+                        state.filters[filterKey] = val;
+                    } else {
+                        state.filters[filterKey] = null;
+                    }
+                    renderList();
+                };
+                return btn;
+            };
+
+            const feeContainer = document.getElementById('fee-filters');
+            ['<5L', '5-10L', '10-20L', '>20L'].forEach(f => feeContainer.appendChild(createPill('fee', f, 'fee')));
+            
+            const ratingContainer = document.getElementById('rating-filters');
+            ['4.5+', '4.0+', '3.5+'].forEach(f => ratingContainer.appendChild(createPill('rating', f, 'rating')));
+        }
+
+        function toggleFilter(key, val, checked) {
+            if (checked) state.filters[key].push(val);
+            else state.filters[key] = state.filters[key].filter(v => v !== val);
+            renderList();
+        }
+
+        function doSearch() { 
+            state.searchQ = document.getElementById('search-input').value.toLowerCase(); 
+            renderList(); 
+        }
+
+        function getFilteredAndSorted() {
+            let data = COLLEGES.filter(c => {
+                const searchMatch = !state.searchQ || c.name.toLowerCase().includes(state.searchQ) || c.loc.toLowerCase().includes(state.searchQ) || c.courses.some(x => x.toLowerCase().includes(state.searchQ));
+                const locMatch = !state.filters.locs.length || state.filters.locs.includes(c.loc.split(',')[1].trim());
+                const typeMatch = !state.filters.types.length || state.filters.types.includes(c.type);
+                
+                let feeMatch = true;
+                if (state.filters.fee) {
+                    const f = c.fees;
+                    if (state.filters.fee === '<5L') feeMatch = f < 500000;
+                    else if (state.filters.fee === '5-10L') feeMatch = f >= 500000 && f <= 1000000;
+                    else if (state.filters.fee === '10-20L') feeMatch = f > 1000000 && f <= 2000000;
+                    else if (state.filters.fee === '>20L') feeMatch = f > 2000000;
+                }
+                
+                let ratingMatch = true;
+                if (state.filters.rating) ratingMatch = c.rating >= parseFloat(state.filters.rating);
+
+                return searchMatch && locMatch && typeMatch && feeMatch && ratingMatch;
+            });
+
+            data.sort((a, b) => {
+                if (state.sortBy === 'rating') return b.rating - a.rating;
+                if (state.sortBy === 'fees_asc') return a.fees - b.fees;
+                if (state.sortBy === 'fees_desc') return b.fees - a.fees;
+                if (state.sortBy === 'nirf') return a.nirf - b.nirf;
+                return 0;
+            });
+            return data;
+        }
+
+        function renderList() {
+            const data = getFilteredAndSorted();
+            const container = document.getElementById('page-list');
+            
+            let html = `
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-4">
+                    <h2 class="text-xl font-semibold text-slate-800">Showing ${data.length} College${data.length !== 1 ? 's' : ''}</h2>
+                    <div class="flex items-center gap-2 text-sm">
+                        <span class="text-slate-500">Sort by:</span>
+                        <select onchange="state.sortBy=this.value; renderList()" class="bg-white border border-slate-200 rounded-lg px-3 py-2 text-slate-700 outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500 shadow-sm cursor-pointer">
+                            <option value="rating" ${state.sortBy==='rating'?'selected':''}>Rating (High to Low)</option>
+                            <option value="nirf" ${state.sortBy==='nirf'?'selected':''}>NIRF Ranking</option>
+                            <option value="fees_asc" ${state.sortBy==='fees_asc'?'selected':''}>Fees (Low to High)</option>
+                            <option value="fees_desc" ${state.sortBy==='fees_desc'?'selected':''}>Fees (High to Low)</option>
+                        </select>
+                    </div>
+                </div>
+            `;
+
+            if (!data.length) {
+                html += `
+                    <div class="flex flex-col items-center justify-center py-20 text-center bg-white rounded-2xl border border-slate-200 border-dashed">
+                        <div class="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center text-slate-400 mb-4">
+                            <i class="ph ph-magnifying-glass text-2xl"></i>
+                        </div>
+                        <h3 class="text-lg font-medium text-slate-900 mb-1">No colleges found</h3>
+                        <p class="text-slate-500 text-sm max-w-sm">Try adjusting your filters or search query to find what you're looking for.</p>
+                    </div>`;
+            } else {
+                html += `<div class="grid grid-cols-1 xl:grid-cols-2 gap-4">`;
+                data.forEach(c => {
+                    const inCmp = state.compareList.includes(c.id);
+                    html += `
+                        <div class="group bg-white rounded-xl border border-slate-200 p-5 hover:shadow-md hover:border-brand-300 transition-all cursor-pointer flex flex-col sm:flex-row gap-5 ${inCmp ? 'ring-2 ring-brand-500 border-transparent' : ''}" onclick="showDetail(${c.id})">
+                            <!-- Icon/Logo -->
+                            <div class="w-16 h-16 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center text-3xl text-brand-600 flex-shrink-0 group-hover:scale-105 transition-transform">
+                                <i class="ph ${c.icon}"></i>
+                            </div>
+                            
+                            <!-- Info -->
+                            <div class="flex-1 min-w-0">
+                                <div class="flex justify-between items-start mb-1">
+                                    <h3 class="font-semibold text-lg text-slate-900 truncate pr-2">${c.name}</h3>
+                                    <div class="flex items-center gap-1 bg-amber-50 text-amber-700 px-2 py-0.5 rounded text-sm font-medium border border-amber-100">
+                                        <i class="ph-fill ph-star text-amber-400"></i> ${c.rating}
+                                    </div>
+                                </div>
+                                <p class="text-sm text-slate-500 flex items-center gap-1.5 mb-3">
+                                    <i class="ph ph-map-pin"></i> ${c.loc}
+                                </p>
+                                
+                                <div class="flex flex-wrap gap-2 mb-4 sm:mb-0">
+                                    <span class="px-2.5 py-1 bg-slate-100 text-slate-600 text-xs rounded-md font-medium">${c.type}</span>
+                                    <span class="px-2.5 py-1 bg-blue-50 text-blue-700 text-xs rounded-md font-medium border border-blue-100">NIRF #${c.nirf}</span>
+                                    <span class="px-2.5 py-1 bg-slate-100 text-slate-600 text-xs rounded-md font-medium">${c.courses[0]} ${c.courses.length > 1 ? `<span class="text-slate-400">+${c.courses.length-1}</span>` : ''}</span>
+                                </div>
+                            </div>
+
+                            <!-- Action / Fees -->
+                            <div class="flex sm:flex-col justify-between items-center sm:items-end sm:border-l border-slate-100 sm:pl-5 flex-shrink-0">
+                                <div class="text-left sm:text-right">
+                                    <p class="text-xs text-slate-400 uppercase tracking-wide mb-0.5">Fees/Year</p>
+                                    <p class="font-semibold text-slate-900">₹${(c.fees/100000).toFixed(1)}L</p>
+                                </div>
+                                <button onclick="event.stopPropagation(); toggleCompare(${c.id})" 
+                                    class="mt-auto px-4 py-1.5 rounded-full text-xs font-medium transition-colors border ${inCmp ? 'bg-brand-50 text-brand-700 border-brand-200 hover:bg-brand-100' : 'bg-white text-slate-600 border-slate-200 hover:border-brand-500 hover:text-brand-600'}">
+                                    ${inCmp ? '<i class="ph ph-check mr-1"></i> Added' : '<i class="ph ph-plus mr-1"></i> Compare'}
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                });
+                html += `</div>`;
+            }
+            container.innerHTML = html;
+        }
+
+        function toggleCompare(id) {
+            if (state.compareList.includes(id)) {
+                state.compareList = state.compareList.filter(x => x !== id);
+            } else if (state.compareList.length < 3) {
+                state.compareList.push(id);
+            } else {
+                // Shake effect if trying to add more than 3
+                const bar = document.getElementById('compare-bar');
+                bar.classList.add('animate-pulse');
+                setTimeout(() => bar.classList.remove('animate-pulse'), 500);
+                return;
+            }
+            updateCompareBar();
+            if (state.currentPage === 'list') renderList();
+            if (state.currentPage === 'compare') renderCompare();
+        }
+
+        function updateCompareBar() {
+            const bar = document.getElementById('compare-bar');
+            const slots = document.getElementById('cmp-slots');
+            const btn = document.getElementById('go-compare-btn');
+            
+            if (state.compareList.length === 0) {
+                bar.style.transform = 'translateY(100%)'; // Hide
+                return;
+            }
+            
+            bar.style.transform = 'translateY(0)'; // Show
+            btn.style.display = state.compareList.length >= 2 ? 'flex' : 'none';
+            
+            slots.innerHTML = state.compareList.map(id => {
+                const c = COLLEGES.find(x => x.id === id);
+                return `
+                    <div class="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 min-w-[140px]">
+                        <i class="ph ${c.icon} text-brand-600"></i>
+                        <span class="text-xs font-medium text-slate-700 truncate max-w-[100px]">${c.name}</span>
+                        <button onclick="toggleCompare(${id})" class="ml-auto text-slate-400 hover:text-red-500 transition-colors">
+                            <i class="ph ph-x"></i>
+                        </button>
+                    </div>`;
+            }).join('');
+
+            // Add empty slots placeholder
+            for(let i=state.compareList.length; i<3; i++){
+                slots.innerHTML += `<div class="flex items-center justify-center border border-dashed border-slate-300 rounded-lg px-3 py-1.5 w-[140px] text-xs text-slate-400 bg-slate-50/50">Add college</div>`
+            }
+        }
+
+        function renderCompare() {
+            const el = document.getElementById('page-compare');
+            if (state.compareList.length < 2) {
+                el.innerHTML = `
+                    <div class="h-full flex flex-col items-center justify-center text-center max-w-sm mx-auto">
+                        <div class="w-20 h-20 bg-brand-50 rounded-full flex items-center justify-center text-brand-500 mb-6">
+                            <i class="ph ph-scales text-4xl"></i>
+                        </div>
+                        <h2 class="text-xl font-semibold text-slate-900 mb-2">Compare Colleges</h2>
+                        <p class="text-slate-500 mb-6">Select 2 to 3 colleges from the Discover tab to see a detailed side-by-side comparison.</p>
+                        <button onclick="showPage('list')" class="px-6 py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-lg font-medium transition-colors">Go to Discover</button>
+                    </div>`;
+                return;
+            }
+
+            const colleges = state.compareList.map(id => COLLEGES.find(c => c.id === id));
+            const metrics = [
+                { label: 'Location', icon: 'ph-map-pin', key: c => c.loc },
+                { label: 'Institution Type', icon: 'ph-buildings', key: c => c.type },
+                { label: 'NIRF Ranking', icon: 'ph-medal', key: c => '#' + c.nirf, best: 'min', valKey: c => c.nirf },
+                { label: 'Annual Fees', icon: 'ph-wallet', key: c => '₹' + (c.fees/100000).toFixed(1) + 'L', best: 'min', valKey: c => c.fees },
+                { label: 'Rating', icon: 'ph-star', key: c => c.rating + ' / 5.0', best: 'max', valKey: c => c.rating },
+                { label: 'Avg Placement', icon: 'ph-trend-up', key: c => '₹' + (c.placements.avg/100000).toFixed(1) + 'L', best: 'max', valKey: c => c.placements.avg },
+                { label: 'Highest Package', icon: 'ph-rocket-launch', key: c => '₹' + (c.placements.highest/100000).toFixed(0) + 'L', best: 'max', valKey: c => c.placements.highest },
+                { label: 'Placement Rate', icon: 'ph-users-three', key: c => c.placements.pct + '%', best: 'max', valKey: c => c.placements.pct },
+                { label: 'Top Courses', icon: 'ph-books', key: c => `<div class="flex flex-wrap gap-1">${c.courses.map(crs=>`<span class="text-[10px] bg-slate-100 px-1.5 py-0.5 rounded text-slate-600">${crs}</span>`).join('')}</div>` },
+            ];
+
+            let html = `
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-xl font-semibold text-slate-800">Comparison</h2>
+                    <button onclick="showPage('list')" class="text-sm font-medium text-brand-600 hover:text-brand-700 flex items-center gap-1 bg-brand-50 px-3 py-1.5 rounded-lg transition-colors">
+                        <i class="ph ph-plus"></i> Add More
+                    </button>
+                </div>
+                <div class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-x-auto">
+                    <table class="w-full text-left border-collapse min-w-[600px]">
+                        <thead>
+                            <tr>
+                                <th class="p-4 border-b border-slate-200 bg-slate-50 w-48 text-xs uppercase tracking-wider text-slate-500 font-semibold sticky left-0 z-10">Criteria</th>
+                                ${colleges.map(c => `
+                                    <th class="p-4 border-b border-l border-slate-200 bg-white min-w-[200px]">
+                                        <div class="flex items-center gap-3 mb-2">
+                                            <div class="w-10 h-10 rounded-lg bg-slate-50 border border-slate-100 flex items-center justify-center text-xl text-brand-600">
+                                                <i class="ph ${c.icon}"></i>
+                                            </div>
+                                            <div>
+                                                <div class="font-semibold text-slate-900">${c.name}</div>
+                                                <button onclick="toggleCompare(${c.id})" class="text-[10px] text-slate-400 hover:text-red-500 font-medium">Remove</button>
+                                            </div>
+                                        </div>
+                                    </th>
+                                `).join('')}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${metrics.map((m, idx) => {
+                                const vals = colleges.map(c => m.valKey ? m.valKey(c) : null);
+                                const bestVal = m.best === 'max' ? Math.max(...vals) : (m.best === 'min' ? Math.min(...vals) : null);
+                                return `
+                                    <tr class="${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/50'} hover:bg-slate-50 transition-colors">
+                                        <td class="p-4 border-b border-slate-200 text-sm text-slate-600 font-medium flex items-center gap-2 sticky left-0 ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/50'} z-10">
+                                            <i class="ph ${m.icon} text-slate-400 text-lg"></i> ${m.label}
+                                        </td>
+                                        ${colleges.map((c, i) => {
+                                            const isBest = bestVal !== null && vals[i] === bestVal;
+                                            return `
+                                                <td class="p-4 border-b border-l border-slate-200 text-sm ${isBest ? 'bg-green-50/50' : ''}">
+                                                    <div class="flex items-center gap-2">
+                                                        <span class="${isBest ? 'text-green-700 font-semibold' : 'text-slate-700'}">${m.key(c)}</span>
+                                                        ${isBest ? '<i class="ph-fill ph-check-circle text-green-500 text-sm" title="Best in category"></i>' : ''}
+                                                    </div>
+                                                </td>
+                                            `;
+                                        }).join('')}
+                                    </tr>
+                                `;
+                            }).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+            el.innerHTML = html;
+        }
+
+        function renderPredictor() {
+            const el = document.getElementById('page-predictor');
+            el.innerHTML = `
+                <div class="max-w-2xl mx-auto">
+                    <div class="bg-gradient-to-r from-brand-600 to-indigo-800 rounded-2xl p-6 sm:p-8 text-white shadow-lg mb-8">
+                        <h2 class="text-2xl font-bold mb-2 flex items-center gap-2"><i class="ph ph-magic-wand"></i> Admission Predictor</h2>
+                        <p class="text-brand-100 text-sm sm:text-base max-w-lg">Enter your examination details to estimate your chances of admission into top colleges based on historical data.</p>
+                    </div>
+
+                    <div class="bg-white border border-slate-200 rounded-xl shadow-sm p-6 mb-8">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 mb-1.5">Select Examination</label>
+                                <div class="relative">
+                                    <select id="pred-exam" class="w-full appearance-none bg-slate-50 border border-slate-200 text-slate-900 text-sm rounded-lg focus:ring-brand-500 focus:border-brand-500 block p-2.5 pr-8 outline-none">
+                                        <option value="">Choose an exam...</option>
+                                        <option value="jee_adv">JEE Advanced (for IITs)</option>
+                                        <option value="jee_main">JEE Main (for NITs/IIITs)</option>
+                                        <option value="bitsat">BITSAT (for BITS)</option>
+                                        <option value="cat">CAT (for IIMs)</option>
+                                        <option value="neet">NEET (for Medical)</option>
+                                    </select>
+                                    <i class="ph ph-caret-down absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"></i>
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 mb-1.5">Your Rank / Percentile</label>
+                                <input type="number" id="pred-rank" placeholder="e.g. 1500 (Rank) or 98.5 (%ile)" class="w-full bg-slate-50 border border-slate-200 text-slate-900 text-sm rounded-lg focus:ring-brand-500 focus:border-brand-500 block p-2.5 outline-none transition-colors">
+                            </div>
+                            <div class="md:col-span-2">
+                                <label class="block text-sm font-medium text-slate-700 mb-1.5">Reservation Category</label>
+                                <div class="flex gap-4">
+                                    ${['General', 'OBC', 'SC/ST'].map((cat, i) => `
+                                        <label class="flex items-center gap-2 cursor-pointer">
+                                            <input type="radio" name="pred_cat" value="${['gen','obc','sc'][i]}" ${i===0?'checked':''} class="w-4 h-4 text-brand-600 bg-slate-100 border-slate-300 focus:ring-brand-500 focus:ring-2">
+                                            <span class="text-sm text-slate-700">${cat}</span>
+                                        </label>
+                                    `).join('')}
+                                </div>
+                            </div>
+                        </div>
+                        <button onclick="runPredictor()" class="w-full bg-slate-900 hover:bg-slate-800 text-white font-medium rounded-lg text-sm px-5 py-3 text-center transition-colors shadow-sm flex justify-center items-center gap-2">
+                            Calculate My Chances <i class="ph ph-calculator"></i>
+                        </button>
+                    </div>
+
+                    <div id="pred-results"></div>
+                </div>
+            `;
+        }
+
+        function runPredictor() {
+            const exam = document.getElementById('pred-exam').value;
+            const rank = parseFloat(document.getElementById('pred-rank').value);
+            const cat = document.querySelector('input[name="pred_cat"]:checked').value;
+            const out = document.getElementById('pred-results');
+
+            if (!exam || !rank || isNaN(rank)) {
+                out.innerHTML = `
+                    <div class="p-4 mb-4 text-sm text-red-800 rounded-lg bg-red-50 flex items-center gap-2 border border-red-200" role="alert">
+                        <i class="ph-fill ph-warning-circle text-lg"></i> Please fill in all details correctly.
+                    </div>`;
+                return;
+            }
+
+            const catMult = cat === 'sc' ? 0.5 : (cat === 'obc' ? 0.75 : 1);
+            
+            const results = COLLEGES.map(c => {
+                let chance = 0;
+                // Dummy prediction logic based on mock data
+                if (exam === 'jee_adv' && c.type === 'IIT') {
+                    chance = rank < 500 ? 95 : rank < 2000 ? 75 : rank < 5000 ? 40 : 5;
+                } else if (exam === 'jee_main' && c.type === 'NIT') {
+                    chance = rank < 2000 ? 90 : rank < 10000 ? 60 : rank < 30000 ? 25 : 5;
+                } else if (exam === 'cat' && c.type === 'IIM') {
+                    chance = rank >= 99 ? 90 : rank >= 95 ? 50 : 5;
+                } else if (exam === 'neet' && c.name.includes('AIIMS')) {
+                    chance = rank < 500 ? 85 : rank < 2000 ? 30 : 5;
+                } else if (exam === 'bitsat' && c.name.includes('BITS')) {
+                    chance = rank >= 350 ? 90 : rank >= 300 ? 50 : 10;
+                } else {
+                    // Fallback for unrelated colleges based on NIRF to show *some* data
+                    chance = Math.max(0, 60 - (c.nirf * 1.5) - (rank > 10000 ? 40 : 0));
+                }
+                
+                // Apply category multiplier (lower rank/score needed)
+                chance = Math.round(Math.min(99, chance / catMult));
+                return { college: c, chance };
+            }).filter(r => r.chance > 0).sort((a, b) => b.chance - a.chance);
+
+            if (results.length === 0) {
+                out.innerHTML = `<div class="text-center p-8 bg-white border border-slate-200 rounded-xl text-slate-500">No matching colleges found for this criteria.</div>`;
+                return;
+            }
+
+            out.innerHTML = `
+                <h3 class="text-lg font-semibold text-slate-800 mb-4 flex items-center gap-2">Results</h3>
+                <div class="space-y-3">
+                    ${results.map(r => {
+                        let colorStr = r.chance >= 75 ? 'bg-green-500' : (r.chance >= 40 ? 'bg-amber-500' : 'bg-red-500');
+                        let bgStr = r.chance >= 75 ? 'bg-green-50 text-green-700 border-green-200' : (r.chance >= 40 ? 'bg-amber-50 text-amber-800 border-amber-200' : 'bg-red-50 text-red-700 border-red-200');
+                        let label = r.chance >= 75 ? 'Excellent' : (r.chance >= 40 ? 'Possible' : 'Tough');
+                        
+                        return `
+                        <div class="bg-white border border-slate-200 rounded-xl p-4 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-transform hover:-translate-y-0.5 cursor-pointer" onclick="showDetail(${r.college.id})">
+                            <div class="flex items-center gap-4">
+                                <div class="w-12 h-12 rounded-lg bg-slate-50 border border-slate-100 flex items-center justify-center text-2xl text-slate-600">
+                                    <i class="ph ${r.college.icon}"></i>
+                                </div>
+                                <div>
+                                    <h4 class="font-semibold text-slate-900">${r.college.name}</h4>
+                                    <p class="text-xs text-slate-500">${r.college.type} · NIRF #${r.college.nirf}</p>
+                                </div>
+                            </div>
+                            
+                            <div class="flex-1 w-full sm:max-w-xs flex flex-col justify-center">
+                                <div class="flex justify-between text-xs mb-1 font-medium">
+                                    <span class="text-slate-500">Probability</span>
+                                    <span class="${r.chance >= 75 ? 'text-green-600' : r.chance >= 40 ? 'text-amber-600' : 'text-red-600'}">${r.chance}%</span>
+                                </div>
+                                <div class="w-full bg-slate-100 rounded-full h-2">
+                                    <div class="${colorStr} h-2 rounded-full transition-all duration-1000 ease-out" style="width: 0%" data-width="${r.chance}%"></div>
+                                </div>
+                            </div>
+                            
+                            <div class="hidden sm:block px-3 py-1 text-xs font-semibold rounded-full border ${bgStr} whitespace-nowrap text-center min-w-[80px]">
+                                ${label}
+                            </div>
+                        </div>`;
+                    }).join('')}
+                </div>
+            `;
+
+            // Animate progress bars
+            setTimeout(() => {
+                document.querySelectorAll('[data-width]').forEach(el => {
+                    el.style.width = el.getAttribute('data-width');
+                });
+            }, 50);
+        }
+
+        function showDetail(id) {
+            const c = COLLEGES.find(x => x.id === id);
+            const el = document.getElementById('page-detail');
+            const inCmp = state.compareList.includes(c.id);
+            
+            el.innerHTML = `
+                <!-- Header Banner -->
+                <div class="bg-slate-900 text-white pb-12 pt-6 px-6 sm:px-10 relative">
+                    <button onclick="showPage('${state.currentPage === 'detail' ? 'list' : state.currentPage}')" class="text-slate-300 hover:text-white flex items-center gap-1 text-sm font-medium transition-colors mb-6 z-10 relative">
+                        <i class="ph ph-arrow-left"></i> Back
+                    </button>
+                    
+                    <div class="flex flex-col sm:flex-row items-start sm:items-center gap-6 relative z-10">
+                        <div class="w-20 h-20 sm:w-24 sm:h-24 bg-white rounded-2xl shadow-lg flex items-center justify-center text-4xl sm:text-5xl text-brand-600 border-4 border-slate-800">
+                            <i class="ph ${c.icon}"></i>
+                        </div>
+                        <div class="flex-1">
+                            <div class="flex flex-wrap items-center gap-3 mb-2">
+                                <h1 class="text-2xl sm:text-3xl font-bold">${c.name}</h1>
+                                <span class="bg-blue-500/20 text-blue-200 border border-blue-500/30 px-2 py-0.5 rounded text-xs font-semibold tracking-wide">NIRF Rank #${c.nirf}</span>
+                            </div>
+                            <p class="text-slate-300 flex items-center gap-1.5 text-sm sm:text-base">
+                                <i class="ph ph-map-pin"></i> ${c.loc} <span class="opacity-50">|</span> ${c.type} Institution
+                            </p>
+                        </div>
+                        <button onclick="toggleCompare(${c.id}); showDetail(${c.id})" class="mt-4 sm:mt-0 px-5 py-2.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${inCmp ? 'bg-white/10 text-white hover:bg-white/20 border border-white/20' : 'bg-brand-500 hover:bg-brand-400 text-white'}">
+                            <i class="ph ${inCmp ? 'ph-check' : 'ph-plus'}"></i> ${inCmp ? 'In Compare List' : 'Add to Compare'}
+                        </button>
+                    </div>
+                    
+                    <!-- Decorative shapes -->
+                    <div class="absolute right-0 top-0 w-64 h-64 bg-brand-500/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3"></div>
+                </div>
+
+                <div class="max-w-5xl mx-auto px-4 sm:px-6 -mt-8 relative z-20 pb-20">
+                    <!-- Stats Grid -->
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+                        <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4 sm:p-5 flex flex-col justify-center">
+                            <p class="text-xs text-slate-500 font-medium uppercase tracking-wider mb-1 flex items-center gap-1"><i class="ph ph-star text-amber-500"></i> User Rating</p>
+                            <p class="text-2xl font-bold text-slate-900">${c.rating}<span class="text-sm font-normal text-slate-400 ml-1">/ 5.0</span></p>
+                        </div>
+                        <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4 sm:p-5 flex flex-col justify-center">
+                            <p class="text-xs text-slate-500 font-medium uppercase tracking-wider mb-1 flex items-center gap-1"><i class="ph ph-wallet text-slate-400"></i> Annual Fees</p>
+                            <p class="text-2xl font-bold text-slate-900">₹${(c.fees/100000).toFixed(1)}<span class="text-sm font-normal text-slate-400 ml-1">Lakhs</span></p>
+                        </div>
+                        <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4 sm:p-5 flex flex-col justify-center">
+                            <p class="text-xs text-slate-500 font-medium uppercase tracking-wider mb-1 flex items-center gap-1"><i class="ph ph-trend-up text-green-500"></i> Avg Package</p>
+                            <p class="text-2xl font-bold text-slate-900">₹${(c.placements.avg/100000).toFixed(1)}<span class="text-sm font-normal text-slate-400 ml-1">LPA</span></p>
+                        </div>
+                        <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4 sm:p-5 flex flex-col justify-center">
+                            <p class="text-xs text-slate-500 font-medium uppercase tracking-wider mb-1 flex items-center gap-1"><i class="ph ph-target text-brand-500"></i> Placement %</p>
+                            <p class="text-2xl font-bold text-slate-900">${c.placements.pct}<span class="text-sm font-normal text-slate-400 ml-1">%</span></p>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                        <div class="md:col-span-2 space-y-8">
+                            <!-- Courses -->
+                            <section>
+                                <h3 class="text-lg font-bold text-slate-900 border-b border-slate-200 pb-2 mb-4 flex items-center gap-2"><i class="ph ph-books text-slate-400"></i> Programs Offered</h3>
+                                <div class="flex flex-wrap gap-2">
+                                    ${c.courses.map(crs => `<span class="px-4 py-2 bg-slate-100 text-slate-700 rounded-lg text-sm font-medium border border-slate-200 hover:bg-slate-200 transition-colors cursor-default">${crs}</span>`).join('')}
+                                </div>
+                            </section>
+
+                            <!-- Reviews -->
+                            <section>
+                                <h3 class="text-lg font-bold text-slate-900 border-b border-slate-200 pb-2 mb-4 flex items-center gap-2"><i class="ph ph-chats text-slate-400"></i> Student Reviews</h3>
+                                <div class="space-y-4">
+                                    ${c.reviews.map(r => `
+                                        <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+                                            <div class="flex items-center gap-3 mb-3">
+                                                <div class="w-8 h-8 rounded-full bg-gradient-to-br from-slate-200 to-slate-300 flex items-center justify-center text-slate-600 font-bold text-xs uppercase">${r.author.charAt(0)}</div>
+                                                <div>
+                                                    <div class="text-sm font-semibold text-slate-900">${r.author}</div>
+                                                    <div class="flex text-amber-400 text-[10px]"><i class="ph-fill ph-star"></i><i class="ph-fill ph-star"></i><i class="ph-fill ph-star"></i><i class="ph-fill ph-star"></i><i class="ph-fill ph-star"></i></div>
+                                                </div>
+                                            </div>
+                                            <p class="text-slate-600 text-sm leading-relaxed">"${r.text}"</p>
+                                        </div>
+                                    `).join('')}
+                                </div>
+                            </section>
+                        </div>
+
+                        <!-- Highlights Sidebar -->
+                        <div class="space-y-6">
+                            <div class="bg-gradient-to-br from-brand-50 to-white p-5 rounded-xl border border-brand-100 shadow-sm">
+                                <h3 class="font-bold text-slate-900 mb-4 flex items-center gap-2"><i class="ph-fill ph-rocket-launch text-brand-500"></i> Placement Highlights</h3>
+                                <ul class="space-y-4">
+                                    <li class="flex justify-between items-end border-b border-brand-100 pb-2">
+                                        <span class="text-sm text-slate-600">Highest Package</span>
+                                        <span class="font-bold text-lg text-slate-900">₹${(c.placements.highest/100000).toFixed(0)}L</span>
+                                    </li>
+                                    <li class="flex justify-between items-end border-b border-brand-100 pb-2">
+                                        <span class="text-sm text-slate-600">Average Package</span>
+                                        <span class="font-bold text-lg text-slate-900">₹${(c.placements.avg/100000).toFixed(1)}L</span>
+                                    </li>
+                                    <li class="flex justify-between items-end">
+                                        <span class="text-sm text-slate-600">Placement Rate</span>
+                                        <span class="font-bold text-lg text-slate-900">${c.placements.pct}%</span>
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            // Manage UI state
+            document.querySelectorAll('.page-transition').forEach(p => p.classList.add('hidden'));
+            el.classList.remove('hidden');
+            
+            if(window.innerWidth < 768) {
+                 document.getElementById('sidebar').classList.add('-translate-x-full');
+                 document.getElementById('sidebar-overlay').classList.add('hidden');
+            }
+            document.getElementById('sidebar').classList.add('md:hidden'); // Hide sidebar on detail page
+            
+            state.currentPage = 'detail';
+            renderTabs(); // update active state (none active)
+        }
+
+        function showPage(pageId) {
+            state.currentPage = pageId;
+            renderTabs();
+            
+            const pages = ['page-list', 'page-compare', 'page-predictor', 'page-detail'];
+            pages.forEach(p => {
+                const el = document.getElementById(p);
+                if(p === `page-${pageId}`) {
+                    el.classList.remove('hidden');
+                } else {
+                    el.classList.add('hidden');
+                }
+            });
+
+            // Handle Sidebar visibility
+            const sidebar = document.getElementById('sidebar');
+            const filterBtn = document.getElementById('mobile-filter-btn');
+            if (pageId === 'list') {
+                sidebar.classList.remove('md:hidden');
+                filterBtn.classList.remove('hidden');
+                renderList();
+            } else {
+                sidebar.classList.add('md:hidden');
+                filterBtn.classList.add('hidden');
+                if (window.innerWidth < 768) {
+                    sidebar.classList.add('-translate-x-full');
+                    document.getElementById('sidebar-overlay').classList.add('hidden');
+                }
+            }
+
+            if (pageId === 'compare') renderCompare();
+            if (pageId === 'predictor') renderPredictor();
+            
+            // Hide compare bar on detail page if needed, but keeping it visible is fine
+        }
+
+        function toggleMobileSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebar-overlay');
+            sidebar.classList.toggle('-translate-x-full');
+            overlay.classList.toggle('hidden');
+        }
+
+        // Initialize
+        window.onload = initApp;
+
+    </script>
+</body>
+</html>
